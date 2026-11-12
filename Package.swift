@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "Topit",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v14)],
     dependencies: [
         .package(path: "Vendor/KeyboardShortcuts"),
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.6.4"),

@@ -12,10 +12,10 @@ VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' Topit.xcodeproj/project.
 BUNDLE_ID=${BUNDLE_ID:-com.whw23.Topit}
 
 python3 Build/gen-shim.py
-swift build -c release --sdk "$SDK" 2>&1 | grep -E "error|Build complete" || true
-BIN=.build/out/Products/Release/Topit
-[ -x "$BIN" ] || BIN=$(swift build -c release --sdk "$SDK" --show-bin-path)/Topit
-[ -x "$BIN" ] || { echo "编译失败"; exit 1; }
+LOG=$(mktemp)
+if ! swift build -c release --sdk "$SDK" >"$LOG" 2>&1; then grep -E "error" "$LOG" | head -20; echo "编译失败"; exit 1; fi
+grep -E "Build complete" "$LOG"
+BIN=$(swift build -c release --sdk "$SDK" --show-bin-path)/Topit
 
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Topit"
@@ -33,7 +33,7 @@ add CFBundleShortVersionString string "$VERSION"
 add CFBundleVersion string "$VERSION"
 add CFBundleIconFile string AppIcon
 add CFBundleDevelopmentRegion string en
-add LSMinimumSystemVersion string 13.0
+add LSMinimumSystemVersion string 14.0
 add LSUIElement bool true
 add NSHighResolutionCapable bool true
 add NSPrincipalClass string NSApplication
