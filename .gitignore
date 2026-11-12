@@ -60,3 +60,8 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# 无 Xcode 构建产物
+.build/
+Build/out/
+Topit/_AssetShim.swift
