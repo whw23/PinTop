@@ -64,4 +64,4 @@ fastlane/test_output
 # 无 Xcode 构建产物
 .build/
 Build/out/
-Topit/_AssetShim.swift
+PinTop/_AssetShim.swift

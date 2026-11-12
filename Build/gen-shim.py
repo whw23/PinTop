@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""没有 actool 时，用 Contents.json 生成等价的 Swift 资源符号（颜色 / 图片）。输出到 Topit/_AssetShim.swift"""
+"""没有 actool 时，用 Contents.json 生成等价的 Swift 资源符号（颜色 / 图片）。输出到 PinTop/_AssetShim.swift"""
 import json, os, sys
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-cat = os.path.join(root, "Topit", "Assets.xcassets")
+cat = os.path.join(root, "PinTop", "Assets.xcassets")
 
 def comp(c):
     v = c["components"]
@@ -33,5 +33,5 @@ out += ["extension ShapeStyle where Self == Color {"] + syms + ["}", ""]
 out += ['''extension NSImage {
     static var unknowScreen: NSImage { NSImage(named: "unknow screen") ?? NSImage(size: NSSize(width: 1, height: 1)) }
 }''']
-open(os.path.join(root, "Topit", "_AssetShim.swift"), "w").write("\n".join(out) + "\n")
+open(os.path.join(root, "PinTop", "_AssetShim.swift"), "w").write("\n".join(out) + "\n")
 print("shim written:", len(syms), "colors")

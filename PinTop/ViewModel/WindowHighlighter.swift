@@ -1,6 +1,6 @@
 //
 //  WindowHighlighter.swift
-//  Topit
+//  PinTop
 //
 //  Created by apple on 2024/11/26.
 //
@@ -62,7 +62,7 @@ class WindowHighlighter {
             cover.ignoresMouseEvents = true
             cover.isReleasedWhenClosed = true
             cover.collectionBehavior = [.canJoinAllSpaces, .stationary]
-            cover.title = "Topit Screen Cover"
+            cover.title = "PinTop Screen Cover"
             cover.orderFront(self)
         }
         
@@ -79,7 +79,7 @@ class WindowHighlighter {
         
     func stopMouseMonitor() {
         DispatchQueue.main.async {
-            for w in NSApp.windows.filter({ $0.title == "Topit Screen Cover" }) { w.close() }
+            for w in NSApp.windows.filter({ $0.title == "PinTop Screen Cover" }) { w.close() }
             // mask was closed without release; drop the stale reference so the
             // EscPanel + hosted HighlightMask actually deallocate.
             WindowHighlighter.shared.mask = nil
@@ -101,7 +101,7 @@ class WindowHighlighter {
             return
         }
         
-        if let app = targetWindow["kCGWindowOwnerName"] as? String, app != "Topit",
+        if let app = targetWindow["kCGWindowOwnerName"] as? String, app != "PinTop",
            let windowID = targetWindow["kCGWindowNumber"] as? Int, targetWindowID != windowID {
             mask?.close()
             targetWindowID = windowID
@@ -119,7 +119,7 @@ class WindowHighlighter {
         mask?.isReleasedWhenClosed = true
         let contentView = NSHostingView(rootView: HighlightMask(app: app, title: title, windowID: windowID))
         mask?.contentView = contentView
-        mask?.title = "Topit Mask Window"
+        mask?.title = "PinTop Mask Window"
         mask?.hasShadow = false
         mask?.sharingType = .none
         mask?.backgroundColor = .clear

@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  Topit
+//  PinTop
 //
 //  Created by apple on 2024/11/17.
 //
@@ -59,7 +59,7 @@ struct ContentView: View {
                             }
                         }
                     }, label: {
-                        Text(" Topit! ")
+                        Text(" PinTop! ")
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .foregroundStyle(.white)
@@ -225,7 +225,7 @@ struct ContentView: View {
                         }
                     }
                 }, label: {
-                    Text(" Topit! ")
+                    Text(" PinTop! ")
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
                         .foregroundStyle(.white)

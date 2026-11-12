@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
-<dictionary title="Topit Scriptable">
-    <suite name="Topit Scripting" code="TPit" description="Topit commands">
+<dictionary title="PinTop Scriptable">
+    <suite name="PinTop Scripting" code="TPit" description="PinTop commands">
         
         <command name="select a window" code="TPitSLwd" description="Select a window to pin">
-            <cocoa class="Topit.selectWindow"/>
+            <cocoa class="PinTop.selectWindow"/>
         </command>
         
         <command name="show selector" code="TPitSHws" description="Open window selector panel">
-            <cocoa class="Topit.showSelector"/>
+            <cocoa class="PinTop.showSelector"/>
         </command>
         
         <command name="toggle frontmost" code="TPitPNft" description="Pin the frontmost window">
-            <cocoa class="Topit.pnpFront"/>
+            <cocoa class="PinTop.pnpFront"/>
         </command>
         
         <command name="toggle under mouse" code="TPitPNme" description="Unpin the frontmost window">
-            <cocoa class="Topit.pnpMouse"/>
+            <cocoa class="PinTop.pnpMouse"/>
         </command>
         
         <command name="unpin all windows" code="TPitUPal" description="Unpin all pinned windows">
-            <cocoa class="Topit.unpinAllWindows"/>
+            <cocoa class="PinTop.unpinAllWindows"/>
         </command>
     </suite>
 </dictionary>

@@ -1,6 +1,6 @@
 //
 //  ScreenCaptureManager.swift
-//  Topit
+//  PinTop
 //
 //  Created by apple on 2024/11/17.
 //
@@ -82,8 +82,22 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
     private var configuration: SCStreamConfiguration = SCStreamConfiguration()
     private var filter: SCContentFilter!
     private var scDisplay: SCDisplay!
-    private var acceptingFrames = false
     private var stopping = false
+
+    // 帧回调在后台队列、而 videoLayer / stream 会在主线程被替换：回调只读这份加锁的快照，避免读到已释放的对象
+    private struct FrameSink { var layer: AVSampleBufferDisplayLayer; var streamID: ObjectIdentifier?; var accepting = false }
+    private let sinkLock = NSLock()
+    private var sink: FrameSink
+    private func updateSink(_ body: (inout FrameSink) -> Void) { sinkLock.lock(); body(&sink); sinkLock.unlock() }
+    private var acceptingFrames: Bool {
+        get { sinkLock.lock(); defer { sinkLock.unlock() }; return sink.accepting }
+        set { updateSink { $0.accepting = newValue } }
+    }
+    override init() {
+        sink = FrameSink(layer: AVSampleBufferDisplayLayer(), streamID: nil)
+        super.init()
+        videoLayer = sink.layer
+    }
     
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
         guard sampleBuffer.isValid else { return }
@@ -91,8 +105,9 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         case .screen:
             // Enqueue on the sample-handler queue: hopping to main retains the
             // IOSurface past its lifetime and drops valid frames across restarts.
-            guard acceptingFrames, self.stream === stream else { return }
-            videoLayer.enqueue(sampleBuffer)
+            sinkLock.lock(); let s = sink; sinkLock.unlock()
+            guard s.accepting, s.streamID == ObjectIdentifier(stream) else { return }
+            s.layer.enqueue(sampleBuffer)
         case .audio:
             break
         case .microphone:
@@ -102,7 +117,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         }
     }
     
-    func startCapture(display: SCDisplay, window: SCWindow) async {
+    @MainActor func startCapture(display: SCDisplay, window: SCWindow) async {
         // A previous async stop may still be in flight; wait briefly instead of
         // dropping the start (dropped starts left pins black until a later tick).
         var spins = 0
@@ -152,10 +167,12 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
                 height: configuration.height, fps: frameRate == .noLimit ? 0 : frameRate.rawValue,
                 queueDepth: CapturePolicy.queueDepth)
             
-            stream = SCStream(filter: filter, configuration: configuration, delegate: self)
-            try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
-            
-            try await stream?.startCapture()
+            let newStream = SCStream(filter: filter, configuration: configuration.copy() as! SCStreamConfiguration, delegate: self)
+            stream = newStream
+            updateSink { $0.streamID = ObjectIdentifier(newStream); $0.accepting = false }
+            try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
+
+            try await newStream.startCapture()
             acceptingFrames = true
             DispatchQueue.main.async {
                 self.capturing = true
@@ -183,7 +200,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
 
     private func releaseCaptureResources(clearCaptureTarget: Bool = true) {
         autoreleasepool {
-            acceptingFrames = false
+            updateSink { $0.accepting = false; $0.streamID = nil }
             stream = nil
             if clearCaptureTarget {
                 filter = nil
@@ -193,7 +210,9 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
             diagnostics = CaptureDiagnostics()
             videoLayer.flushAndRemoveImage()
             videoLayer.removeFromSuperlayer()
-            videoLayer = AVSampleBufferDisplayLayer()
+            let newLayer = AVSampleBufferDisplayLayer()
+            updateSink { $0.layer = newLayer }
+            videoLayer = newLayer
             capturing = false
             CATransaction.flush()
         }
@@ -203,7 +222,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         _ = malloc_zone_pressure_relief(nil, 0)
     }
     
-    func resumeCapture(newWidth: CGFloat, newHeight: CGFloat, screenID: CGDirectDisplayID? = nil) async {
+    @MainActor func resumeCapture(newWidth: CGFloat, newHeight: CGFloat, screenID: CGDirectDisplayID? = nil) async {
         var spins = 0
         while stopping, spins < 20 {
             try? await Task.sleep(for: .milliseconds(50))
@@ -219,9 +238,12 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         updateStreamSize(newWidth: newWidth, newHeight: newHeight, screen: screen)
         do {
             if stream != nil { return }
-            stream = SCStream(filter: filter, configuration: configuration, delegate: self)
-            try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
-            try await stream?.startCapture()
+            let newStream = SCStream(filter: filter, configuration: configuration.copy() as! SCStreamConfiguration, delegate: self)
+            stream = newStream
+            updateSink { $0.streamID = ObjectIdentifier(newStream); $0.accepting = false }
+            try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
+            try await newStream.startCapture()
+            acceptingFrames = true
             DispatchQueue.main.async {
                 self.capturing = true
                 self.capturError = false
@@ -254,7 +276,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         diagnostics = CaptureDiagnostics(activePins: SCManager.pinnedWdinwows.count, width: dimensions.width,
             height: dimensions.height, fps: frameRate == .noLimit ? 0 : frameRate.rawValue, queueDepth: CapturePolicy.queueDepth)
 
-        stream?.updateConfiguration(configuration) { error in
+        stream?.updateConfiguration(configuration.copy() as! SCStreamConfiguration) { error in
             if let error = error { print("Failed to update stream configuration: \(error)") }
         }
     }
@@ -299,7 +321,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
 class SCManager {
     static var pinnedWdinwows = [SCWindow]()
     static var availableContent: SCShareableContent?
-    static private let excludedApps = ["", "com.apple.dock", "com.apple.screencaptureui", "com.apple.controlcenter", "com.apple.notificationcenterui", "com.apple.systemuiserver", "com.apple.WindowManager", "dev.mnpn.Azayaka", "com.gaosun.eul", "com.pointum.hazeover", "net.matthewpalmer.Vanilla", "com.dwarvesv.minimalbar", "com.bjango.istatmenus.status", "com.macpaw.CleanMyMac4", "com.lihaoyun6.Topit"]
+    static private let excludedApps = ["", "com.apple.dock", "com.apple.screencaptureui", "com.apple.controlcenter", "com.apple.notificationcenterui", "com.apple.systemuiserver", "com.apple.WindowManager", "dev.mnpn.Azayaka", "com.gaosun.eul", "com.pointum.hazeover", "net.matthewpalmer.Vanilla", "com.dwarvesv.minimalbar", "com.bjango.istatmenus.status", "com.macpaw.CleanMyMac4", "com.whw23.PinTop"]
     
     static func updateAvailableContentSync() -> SCShareableContent? {
         let semaphore = DispatchSemaphore(value: 0)

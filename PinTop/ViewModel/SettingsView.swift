@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  Topit
+//  PinTop
 //
 //  Created by apple on 2024/11/19.
 //
@@ -32,7 +32,7 @@ struct SettingsView: View {
             .padding(.top, 9)
         }
         .frame(width: 600, height: 400)
-        .navigationTitle("Topit Settings")
+        .navigationTitle("PinTop Settings")
     }
 }
 
@@ -60,17 +60,13 @@ struct GeneralView: View {
                         }
                     SDivider()
                 }
-                SToggle("Show Topit on Dock", isOn: $showOnDock)
+                SToggle("Show PinTop on Dock", isOn: $showOnDock)
                 SDivider()
-                SToggle("Show Topit on Menu Bar", isOn: $showMenubar)
-            }
-            SGroupBox(label: "Update") {
-                UpdaterSettingsView(updater: updaterController.updater)
+                SToggle("Show PinTop on Menu Bar", isOn: $showMenubar)
             }
             VStack(spacing: 8) {
-                CheckForUpdatesView(updater: updaterController.updater)
                 if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-                    Text("Topit v\(appVersion)")
+                    Text("PinTop v\(appVersion)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -138,7 +134,7 @@ struct WindowView: View {
             SGroupBox {
                 if #available (macOS 13, *) {
                     SToggle("Ducking Between Pinned Windows", isOn: $autoAvoid,
-                            tips: "By enabling this, Topit will hide other pinned windows that overlap with the currently active window.")
+                            tips: "By enabling this, PinTop will hide other pinned windows that overlap with the currently active window.")
                     SDivider()
                     SToggle("Add Border for Translucent Window", isOn: $showBorder)
                 } else {

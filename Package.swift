@@ -3,18 +3,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "Topit",
+    name: "PinTop",
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(path: "Vendor/KeyboardShortcuts"),
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.6.4"),
     ],
     targets: [
         .executableTarget(
-            name: "Topit",
-            dependencies: ["KeyboardShortcuts", "Sparkle"],
-            path: "Topit",
-            exclude: ["Info.plist", "Topit.entitlements", "Assets.xcassets", "Base.lproj",
+            name: "PinTop",
+            dependencies: ["KeyboardShortcuts"],
+            path: "PinTop",
+            exclude: ["Info.plist", "PinTop.entitlements", "Assets.xcassets", "Base.lproj",
                       "zh-Hans.lproj", "zh-Hant.lproj", "Scriptable/Scriptable.sdef", "Preview Content"]
         )
     ]
