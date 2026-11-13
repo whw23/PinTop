@@ -24,23 +24,12 @@ struct PinTopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        Settings {
-            SettingsView()
-                .background(
-                    WindowAccessor(
-                        onWindowOpen: { w in
-                            if let w = w {
-                                w.level = .floating
-                                w.titlebarSeparatorStyle = .none
-                                guard let nsSplitView = findNSSplitVIew(view: w.contentView),
-                                      let controller = nsSplitView.delegate as? NSSplitViewController else { return }
-                                controller.splitViewItems.first?.canCollapse = false
-                                controller.splitViewItems.first?.minimumThickness = 140
-                                controller.splitViewItems.first?.maximumThickness = 140
-                                w.orderFront(nil)
-                            }
-                        })
-                )
+        // 设置窗口由 openSettingPanel() 自己创建（不依赖 SwiftUI 的 Settings 场景/菜单项下标，那个在 macOS 14+ 上经常打不开）
+        Settings { EmptyView() }
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { openSettingPanel() }.keyboardShortcut(",")
+            }
         }
     }
 }
@@ -215,16 +204,34 @@ func createAlert(level: NSAlert.Style = .warning, title: String, message: String
     return alert
 }
 
+private var settingsWindow: NSWindow?
+
 func openSettingPanel() {
     closeMainWindow()
-    NSApp.activate(ignoringOtherApps: true)
-    if #available(macOS 14, *) {
-        NSApp.mainMenu?.items.first?.submenu?.item(at: 3)?.performAction()
-    }else if #available(macOS 13, *) {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    } else {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    if let w = settingsWindow {   // 已存在就直接前置（用户关闭窗口时不会释放，见 isReleasedWhenClosed）
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+        return
     }
+    let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+                     styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+    w.isReleasedWhenClosed = false
+    w.title = "PinTop Settings".local
+    w.level = .floating
+    w.titlebarSeparatorStyle = .none
+    w.contentView = NSHostingView(rootView: SettingsView())
+    // 侧边栏固定 140 宽、不可折叠（原先在 Settings 场景的 WindowAccessor 里做的）
+    DispatchQueue.main.async {
+        if let split = findNSSplitVIew(view: w.contentView), let c = split.delegate as? NSSplitViewController {
+            c.splitViewItems.first?.canCollapse = false
+            c.splitViewItems.first?.minimumThickness = 140
+            c.splitViewItems.first?.maximumThickness = 140
+        }
+    }
+    w.center()
+    settingsWindow = w
+    NSApp.activate(ignoringOtherApps: true)
+    w.makeKeyAndOrderFront(nil)
 }
 
 func findNSSplitVIew(view: NSView?) -> NSSplitView? {
@@ -237,13 +244,6 @@ func findNSSplitVIew(view: NSView?) -> NSSplitView? {
         for subview in current.subviews { queue.append(subview) }
     }
     return nil
-}
-
-extension NSMenuItem {
-    func performAction() {
-        guard let menu else { return }
-        menu.performActionForItem(at: menu.index(of: self))
-    }
 }
 
 class NNSPanel: NSPanel {
