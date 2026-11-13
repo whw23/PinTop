@@ -70,11 +70,20 @@ class AvoidManager: ObservableObject {
     @Published var activedFrame: CGRect = .zero
 }
 
+// 镜像层：拉伸填满浮层（默认的 resizeAspect 在比例差一点点时会在边上留黑边），背景透明（窗口圆角处是透明像素，否则会被渲染成黑色）
+func makeVideoLayer() -> AVSampleBufferDisplayLayer {
+    let l = AVSampleBufferDisplayLayer()
+    l.videoGravity = .resize
+    l.isOpaque = false
+    l.backgroundColor = CGColor.clear
+    return l
+}
+
 class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStreamOutput {
     @AppStorage("maxFps") private var maxFps: Int = CaptureFrameRate.standard.rawValue
     @AppStorage("captureQuality") private var captureQuality: Int = CapturePolicy.defaultQuality.rawValue
     
-    @Published var videoLayer: AVSampleBufferDisplayLayer = AVSampleBufferDisplayLayer()
+    @Published var videoLayer: AVSampleBufferDisplayLayer = makeVideoLayer()
     @Published var capturError: Bool = false
     @Published var capturing: Bool = false
     @Published private(set) var diagnostics = CaptureDiagnostics()
@@ -94,7 +103,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
         set { updateSink { $0.accepting = newValue } }
     }
     override init() {
-        sink = FrameSink(layer: AVSampleBufferDisplayLayer(), streamID: nil)
+        sink = FrameSink(layer: makeVideoLayer(), streamID: nil)
         super.init()
         videoLayer = sink.layer
     }
@@ -148,6 +157,8 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
             configuration.queueDepth = CapturePolicy.queueDepth
             configuration.showsCursor = false
             configuration.scalesToFit = true
+            // 不把窗口阴影截进画面：否则画面比窗口大一圈，缩放后边缘/圆角会有一圈深色（浮层自己会画阴影）
+            configuration.ignoreShadowsSingleWindow = true
             if #available (macOS 13, *) { configuration.capturesAudio = false }
 
             if #available(macOS 14, *) {
@@ -210,7 +221,7 @@ class ScreenCaptureManager: NSObject, ObservableObject, SCStreamDelegate, SCStre
             diagnostics = CaptureDiagnostics()
             videoLayer.flushAndRemoveImage()
             videoLayer.removeFromSuperlayer()
-            let newLayer = AVSampleBufferDisplayLayer()
+            let newLayer = makeVideoLayer()
             updateSink { $0.layer = newLayer }
             videoLayer = newLayer
             capturing = false
