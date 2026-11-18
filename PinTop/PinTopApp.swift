@@ -40,12 +40,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @AppStorage("showMenubar") private var showMenubar: Bool = true
     
     func applicationWillFinishLaunching(_ notification: Notification) {
+        ud.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
         if #unavailable(macOS 14) { isMacOS13 = true }
         if #unavailable(macOS 13) { isMacOS12 = true }
         if showOnDock { NSApp.setActivationPolicy(.regular) }
         if let button = statusBarItem.button {
             button.target = self
-            button.image = NSImage(named: "statusIcon")
+            // asset catalog 里标了 template，但 build.sh 把图片当散文件拷贝会丢掉这个标记，这里显式设置，
+            // 否则图标按原色渲染，和其它菜单栏图标（随系统明暗/壁纸着色）风格不一致
+            let icon = NSImage(named: "statusIcon")
+            icon?.isTemplate = true
+            button.image = icon
         }
         let menu = NSMenu()
         menu.addItem(withTitle: "Pin a Window".local, action: #selector(selectWindowToPin), keyEquivalent: "p")
@@ -72,6 +77,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // SwiftUI 的 Settings { EmptyView() } 场景窗口是空白的：上次退出时若它是打开状态，
+        // 启动时会被还原出来（表现为启动时弹出一个空白面板）。真正的设置窗口见 openSettingPanel()。
+        hideBlankSettingsScene()
+        for delay in [0.2, 0.6, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { hideBlankSettingsScene() }
+        }
         if showOnDock { _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: false) }
     }
     
@@ -155,6 +166,12 @@ func pnpFrontmostWindow() {
             closeMainWindow()
             createNewWindow(display: scDisplay, window: scWindow)
         }
+    }
+}
+
+func hideBlankSettingsScene() {
+    for w in NSApp.windows where w.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" {
+        w.orderOut(nil)
     }
 }
 
